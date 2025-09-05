@@ -4,7 +4,8 @@
 > **segmented objects + metric 3-D boxes + depth map + pseudo-LiDAR point-cloud + bird-eye-view + safety alerts**  
 > **without a real LiDAR**.
 
----
+---![frame_000006 (2)](https://github.com/user-attachments/assets/96ef982f-5010-4673-92cc-a51880d9c511)
+
 
 ## 🔥 Features
 | Module | What you get |
