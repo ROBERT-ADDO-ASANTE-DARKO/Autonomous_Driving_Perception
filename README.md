@@ -26,6 +26,8 @@ This system provides a complete end-to-end perception pipeline for autonomous ve
 - ✅ Comprehensive logging and analytics
 - ✅ Bird's-eye-view (BEV) visualization
 
+![sample_image](https://github.com/user-attachments/assets/60a5f719-54cc-454b-a944-6d762898d19d)
+
 ## 🏗️ System Architecture
 
 ```mermaid
