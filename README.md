@@ -1,195 +1,452 @@
-# 🚗 AV Perception System – Monocular 3-D Scene Understanding
+Below is a **comprehensive GitHub repository structure and README** for your Autonomous Perception System based on your uploaded `av_perception_system.py` implementation.
 
-> Turn **any single dash-cam / traffic video** into  
-> **segmented objects + metric 3-D boxes + depth map + pseudo-LiDAR point-cloud + bird-eye-view + safety alerts**  
-> **without a real LiDAR**.
+This includes:
 
----![frame_000006 (2)](https://github.com/user-attachments/assets/96ef982f-5010-4673-92cc-a51880d9c511)
-
-
-## 🔥 Features
-| Module | What you get |
-|--------|--------------|
-| **YOLOv9 + Deep SORT** | Robust multi-object tracking with IDs |
-| **SAM-2** | Pixel-perfect instance masks |
-| **YOLO-P** | Drivable-area & lane-line segmentation |
-| **DPT depth** | Dense metric depth (0-80 m) |
-| **3-D boxes** | Metric, yaw-oriented, temporally stable |
-| **Pseudo-LiDAR** | Top-down BEV point cloud + `.ply` export |
-| **Safety** | Speed & safe-distance alerts |
-| **Outputs** | Rendered video, frames, CSV, point clouds |
+* Full project architecture
+* Flow diagram
+* Mathematical formulation
+* Model sources & citations
+* Pseudo-LiDAR equations
+* 3D box projection math
+* Kalman filtering equations
+* BEV transformation math
+* Installation instructions
+* Research-grade documentation
 
 ---
 
-## 🚀 30-Second Start
-```bash
-# 1. Clone
-git clone https://github.com/YOUR_NAME/AV_Perception_System.git
-cd AV_Perception_System
+# 🚗 AV-Multimodal-Perception-System
 
-# 2. Install
-pip install -r requirements.txt
-
-# 3. Download weights (script included)
-bash scripts/download_weights.sh
-
-# 4. Run
-python av_perception_system.py --source data/sample_traffic.mp4 --view-img --save-frames
-```
-Result → `runs/detect/exp/`  
-`*_overlay.mp4` (final) | `frames/*.jpg` | `depth_log.csv` | `output/*.ply`
+> A modular autonomous perception stack combining detection, tracking, segmentation, monocular depth estimation, pseudo-LiDAR reconstruction, stabilized 3D bounding boxes, and BEV mapping.
 
 ---
 
-## 📊 Pipeline Overview
-```mermaid
-graph TD
-    A([RGB Video]) --> B[YOLOv9<br>2-D Detection]
-    B --> C[Deep SORT<br>Tracking]
-    B --> D[SAM-2<br>Instance Masks]
-    A --> E[YOLO-P<br>Lane & Drivable]
-    A --> F[DPT<br>Depth Map]
-    F --> G[Depth Post-Proc.<br>stabilise + correct]
-    C & G --> H[Lift to 3-D<br>yaw + size priors]
-    C & G --> I[Pseudo-LiDAR<br>BEV Point Cloud]
-    C & G --> J[Textured PLY<br>+ 3-D Boxes]
-    H --> K[Speed &<br>Safe-Distance]
-    K --> L([Alert Overlay])
-    D & E & I & J & L --> M([Final Video])
-    J --> N([Open3D / CloudCompare])
-```
+# 📁 Repository Structure
 
----
-
-## 📁 Repository Layout
 ```
-AV_Perception_System/
-├── av_perception_system.py      # main inference script
-├── lib/
-│   ├── depth_estimator.py       # DPT wrapper
-│   ├── bbox_3d.py               # 3-D box lifting + Kalman
-│   ├── bev_pcl.py               # BEV & pseudo-LiDAR
-│   └── exporter.py              # PLY export utils
+AV-Multimodal-Perception-System/
+│
+├── av_perception_system.py
+├── models/
+│   ├── yolo/
+│   ├── yolop/
+│   ├── sam2/
+│   ├── depth_anything/
+│
 ├── configs/
-│   ├── deep_sort.yaml           # Deep SORT params
-│   └── camera.yaml              # intrinsics (704×576, 70° FOV)
-├── scripts/
-│   ├── download_weights.sh      # auto-download
-│   └── convert_kitti.py         # KITTI labels ← our outputs
+│   ├── deepsort.yaml
+│   ├── camera_intrinsics.yaml
+│
+├── output/
+│   ├── bev_topdown.ply
+│   ├── pointcloud_with_boxes.ply
+│   ├── textured_pointcloud.ply
+│
+├── depth_log.csv
 ├── requirements.txt
-└── README.md
+├── README.md
+└── docs/
+    ├── system_diagram.png
+    ├── equations.md
 ```
 
 ---
 
-## 🛠️ Detailed Setup
-### 1. Environment
+# 🧠 System Overview
+
+This system integrates:
+
+| Module                            | Model Used                          |
+| --------------------------------- | ----------------------------------- |
+| Object Detection                  | YOLOv9                              |
+| Object Tracking                   | DeepSORT                            |
+| Drivable Area + Lane Segmentation | YOLOP                               |
+| Instance Segmentation             | SAM 2                               |
+| Depth Estimation                  | Depth Anything V3 (DA3Metric-Large) |
+| 3D Box Stabilization              | Kalman Filter                       |
+| Pseudo-LiDAR BEV                  | Custom EnhancedPseudoLidarBEV       |
+| 3D Point Cloud Export             | Open3D                              |
+
+---
+
+# 🔁 System Flow Diagram
+
+```
+                RGB Frame
+                    │
+                    ▼
+         ┌──────────────────┐
+         │   YOLOv9         │
+         │  Object Detect   │
+         └──────────────────┘
+                    │
+                    ▼
+         ┌──────────────────┐
+         │   DeepSORT       │
+         │   Tracking       │
+         └──────────────────┘
+                    │
+                    ▼
+         ┌──────────────────┐
+         │ Depth Anything   │
+         │ Monocular Depth  │
+         └──────────────────┘
+                    │
+                    ▼
+         ┌──────────────────┐
+         │ Pseudo-LiDAR     │
+         │ 3D Reconstruction│
+         └──────────────────┘
+                    │
+                    ▼
+         ┌──────────────────┐
+         │ 3D Box Estimator │
+         │ + Kalman Filter  │
+         └──────────────────┘
+                    │
+                    ▼
+         ┌──────────────────┐
+         │ BEV Renderer     │
+         │ + PLY Export     │
+         └──────────────────┘
+```
+
+---
+
+# 📐 Mathematical Formulation
+
+---
+
+## 1️⃣ Camera Projection Model
+
+Camera intrinsic matrix:
+
+[
+K =
+\begin{bmatrix}
+f_x & 0 & c_x \
+0 & f_y & c_y \
+0 & 0 & 1
+\end{bmatrix}
+]
+
+Pixel to 3D camera coordinate:
+
+[
+X = \frac{(u - c_x) Z}{f_x}
+]
+
+[
+Y = \frac{(v - c_y) Z}{f_y}
+]
+
+[
+Z = \text{Depth value}
+]
+
+Used in:
+
+* `pixel_to_camera_coords()`
+* `depth_to_bev_points()`
+* 3D box projection
+
+---
+
+## 2️⃣ Monocular Depth Estimation
+
+Using:
+
+* Depth Anything V3 (metric model)
+
+Depth inference:
+
+[
+D = f_\theta(I)
+]
+
+Where:
+
+* ( I ) = RGB image
+* ( \theta ) = pretrained transformer weights
+* ( D ) = dense depth map
+
+---
+
+## 3️⃣ Pseudo-LiDAR Reconstruction
+
+Convert depth map to 3D points:
+
+[
+\mathbf{P} = (X, Y, Z)
+]
+
+Filter by:
+
+[
+0.1 < Z < 80m
+]
+
+Points stacked into rolling buffer:
+
+[
+P_{global} = \bigcup_{t-k}^{t} P_t
+]
+
+---
+
+## 4️⃣ BEV Transformation
+
+Top-down projection:
+
+[
+x_{bev} = center_x + X \cdot scale
+]
+
+[
+y_{bev} = center_y - Z \cdot scale
+]
+
+Height-based coloring:
+
+[
+color = \text{colormap}(Y)
+]
+
+---
+
+## 5️⃣ 3D Bounding Box Estimation
+
+Vehicle dimensions:
+
+[
+w, h, l
+]
+
+3D corners:
+
+[
+C = \begin{bmatrix}
+\pm w/2 & 0 & \pm l/2 \
+\pm w/2 & -h & \pm l/2
+\end{bmatrix}
+]
+
+Yaw rotation:
+
+[
+R_y =
+\begin{bmatrix}
+\cos \psi & 0 & \sin \psi \
+0 & 1 & 0 \
+-\sin \psi & 0 & \cos \psi
+\end{bmatrix}
+]
+
+Projection:
+
+[
+p_{2D} = K \cdot (R_y C + T)
+]
+
+---
+
+## 6️⃣ Kalman Filter for Yaw
+
+State:
+
+[
+x =
+\begin{bmatrix}
+\psi \
+\dot{\psi}
+\end{bmatrix}
+]
+
+Prediction:
+
+[
+x_{k|k-1} = A x_{k-1}
+]
+
+Where:
+
+[
+A =
+\begin{bmatrix}
+1 & 1 \
+0 & 1
+\end{bmatrix}
+]
+
+Measurement update:
+
+[
+x_{k|k} = x_{k|k-1} + K (z_k - H x_{k|k-1})
+]
+
+---
+
+## 7️⃣ Position Kalman
+
+State:
+
+[
+[x, y, \dot{x}, \dot{y}]
+]
+
+Used to stabilize bottom anchor of 3D box.
+
+---
+
+# 📦 Model Sources
+
+---
+
+## 🔹 YOLOv9
+
+Paper:
+
+> Wang et al., YOLOv9: Learning What You Want to Learn Using Programmable Gradient Information (2024)
+
+Repo:
+[https://github.com/WongKinYiu/yolov9](https://github.com/WongKinYiu/yolov9)
+
+---
+
+## 🔹 DeepSORT
+
+Paper:
+
+> Wojke et al., Simple Online and Realtime Tracking (2017)
+
+Repo:
+[https://github.com/ZQPei/deep_sort_pytorch](https://github.com/ZQPei/deep_sort_pytorch)
+
+---
+
+## 🔹 YOLOP
+
+Paper:
+
+> YOLOP: You Only Look Once for Panoptic Driving Perception (2021)
+
+Repo:
+[https://github.com/hustvl/YOLOP](https://github.com/hustvl/YOLOP)
+
+---
+
+## 🔹 SAM 2
+
+Meta AI:
+
+> Segment Anything Model 2
+
+Repo:
+[https://github.com/facebookresearch/segment-anything-2](https://github.com/facebookresearch/segment-anything-2)
+
+Ultralytics integration:
+[https://docs.ultralytics.com](https://docs.ultralytics.com)
+
+---
+
+## 🔹 Depth Anything V3
+
+Paper:
+
+> Depth Anything: Unleashing the Power of Large-Scale Unlabeled Data (2024)
+
+Model:
+depth-anything/DA3METRIC-LARGE
+
+Repo:
+[https://github.com/DepthAnything/Depth-Anything-V2](https://github.com/DepthAnything/Depth-Anything-V2)
+[https://github.com/DepthAnything/Depth-Anything-3](https://github.com/DepthAnything/Depth-Anything-3)
+
+---
+
+## 🔹 Intel DPT
+
+Paper:
+
+> Vision Transformers for Dense Prediction (DPT)
+
+Repo:
+[https://github.com/isl-org/DPT](https://github.com/isl-org/DPT)
+
+---
+
+## 🔹 Open3D
+
+Library:
+[http://www.open3d.org/](http://www.open3d.org/)
+
+---
+
+# 🚀 Installation
+
 ```bash
-conda create -n av_perception python=3.10 -y
-conda activate av_perception
+git clone https://github.com/yourname/AV-Multimodal-Perception-System
+cd AV-Multimodal-Perception-System
+
 pip install -r requirements.txt
-# or manually:
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
-pip install opencv-python-headless transformers ultralytics open3d scipy filterpy
 ```
 
-### 2. Weights (~1.4 GB total)
+If using Depth Anything V2:
+
 ```bash
-bash scripts/download_weights.sh   # automated
-# or manual:
-wget -P weights https://github.com/WongKinYiu/yolov9/releases/download/v1.0/yolov9-c.pt
-wget -P weights https://github.com/IDEA-Research/GroundingDINO/releases/download/v0.1.0-alpha/sam2_s.pt
-wget -P weights https://github.com/hustvl/YOLOP/releases/download/v1.0/End-to-end.pth
-```
-
-### 3. Camera Calibration (optional)
-Edit `configs/camera.yaml` if your video differs:
-```yaml
-fx: 503
-fy: 503
-cx: 352
-cy: 288
-width: 704
-height: 576
-fov: 70
+git clone https://github.com/DepthAnything/Depth-Anything-V2
 ```
 
 ---
 
-## ▶️ Usage
-| Flag | Purpose |
-|------|---------|
-| `--source` | video file, folder, webcam id, YouTube URL |
-| `--weights` | YOLOv9 weights (also tries auto-download) |
-| `--view-img` | live preview window |
-| `--save-frames` | dump every annotated frame to `frames/` |
-| `--draw-trails` | 64-frame motion trails |
-| `--conf-thres` | detection threshold (default 0.25) |
-| `--pixels-per-meter` | speed calibration factor (auto-tunes if cars visible) |
+# ▶️ Run
 
-### Example Commands
 ```bash
-# single video
-python av_perception_system.py --source data/my_drive.mp4 --view-img --save-frames
-
-# webcam + lower confidence
-python av_perception_system.py --source 0 --conf-thres 0.2 --view-img
-
-# folder of clips + only vehicles
-python av_perception_system.py --source data/clips/ --classes 2 3 5 7 --save-frames
+python av_perception_system.py --source video.mp4
 ```
 
 ---
 
-## 📊 Outputs Explained
-| File | Description |
-|------|-------------|
-| `runs/detect/exp/*_overlay.mp4` | Side-by-side: original + segmentation + 3-D boxes + BEV |
-| `frames/frame_000001.jpg` | Individual annotated frames (if `--save-frames`) |
-| `depth_log.csv` | Per-object depth & focal-length estimation log |
-| `output/bev_cloud.ply` | Top-down pseudo-LiDAR (x,z,rgb) – import to CloudCompare |
-| `output/pseudo_lidar_full.ply` | Full 3-D point cloud (x,y,z,rgb) |
-| `output/frame_000123_semantic.ply` | Same cloud but objects re-coloured by class |
+# 📤 Outputs
+
+* BEV overlay video
+* `bev_topdown.ply`
+* `pointcloud_with_boxes.ply`
+* `textured_pointcloud.ply`
+* `depth_log.csv`
 
 ---
 
-## 🧪 3-D Box Generation (Mini Paper)
-1. **Depth**: DPT → median patch → outlier gate → EMA → per-class clamp → **metric Z**
-2. **Anchor**: bottom-centre pixel → inverse projection → **3-D centre**
-3. **Yaw**: motion vector (Kalman) or horizontal heuristic → **heading θ**
-4. **Size**: class prior × pixel-width / expected-width → **adaptive w,h,l**
-5. **Corners**: 8-point template → rotate by θ → translate → **camera coords**
-6. **Projection**: K · corners → image → draw 12 edges with confidence alpha
+# 🔬 Research Contributions
+
+* Rolling pseudo-LiDAR buffer
+* Adaptive 3D bounding box scaling
+* EMA + Kalman fusion stabilization
+* BEV semantic recoloring
+* Exportable 3D scene reconstruction
 
 ---
 
-## 🔍 FAQ
-**Q: No GPU?**  
-A: Works on CPU (~3 fps). Add `--device cpu --half` for Torch FP16.
+# 📈 Future Extensions
 
-**Q: Different resolution?**  
-A: Change `configs/camera.yaml` or let the script auto-estimate fx from cars.
-
-**Q: Real-time?**  
-A: ~25 fps @ 720p on RTX 3060 (YOLOv9-nano gives 45 fps).
-
-**Q: Metric accuracy?**  
-A: Depth ±10 %, yaw ±5 °, dimension ±8 % vs. LiDAR GT (tested on KITTI).
+* Multi-frame SLAM fusion
+* Ego-motion compensation
+* Multi-camera fusion
+* Radar/LiDAR sensor fusion
+* Transformer-based 3D box estimation
+* Town-scale mapping expansion
 
 ---
 
-## 🤝 Cite / Contribute
-```bibtex
-@misc{av_perception_mono,
-  title = {{AV Perception System}: Monocular 3-D Scene Understanding},
-  author = {Your Name},
-  year = {2024},
-  howpublished = {\url{https://github.com/YOUR_NAME/AV_Perception_System}}
-}
-```
-PR & issues welcome!
+# 🏁 Conclusion
 
----
+This repository implements a **full perception stack approximating production autonomous driving pipelines**, combining:
 
-## 📄 License
-MIT – feel free for academic or commercial use.
+* Detection
+* Tracking
+* Segmentation
+* Depth
+* 3D reconstruction
+* Stabilized 3D bounding boxes
+* BEV pseudo-LiDAR mapping
+* Exportable point clouds
